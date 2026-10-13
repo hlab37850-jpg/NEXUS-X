@@ -41,13 +41,28 @@ class _NexusHomeState extends State<NexusHome> {
         : selected == 2 ? const EmptyPage(icon: Icons.auto_awesome,title:'الذكاء الاصطناعي',message:'لم يتم ربط مزود ذكاء اصطناعي بعد. ستضاف المصادقة الآمنة في مرحلة مستقلة.')
         : selected == 4 ? const EmptyPage(icon: Icons.settings,title:'الإعدادات',message:'إعدادات الحساب والاتصال ستضاف بعد تجهيز التكاملات الآمنة.')
         : _home()),
-      Container(color: const Color(0xFF0D1422),padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(children: List.generate(labels.length,(i)=>Expanded(child: InkWell(
-          onTap:()=>setState(()=>selected=i), child: Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Column(mainAxisSize:MainAxisSize.min,children:[
-            Icon(icons[i],color:selected==i?blue:Colors.white54,size:21),const SizedBox(height:4),
-            Text(labels[i],maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:9,color:selected==i?blue:Colors.white54))
-          ])))))),
-    ]))));
+      Container(
+        color: const Color(0xFF0D1422),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: List.generate(labels.length, (i) => Expanded(
+            child: InkWell(
+              onTap: () => setState(() => selected = i),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(icons[i], color: selected == i ? blue : Colors.white54, size: 21),
+                  const SizedBox(height: 4),
+                  Text(labels[i], maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 9, color: selected == i ? blue : Colors.white54)),
+                ]),
+              ),
+            ),
+          )),
+        ),
+      ),
+    ]))),
+  );
   Widget _home()=>ListView(padding:const EdgeInsets.all(18),children:[
     Container(padding:const EdgeInsets.all(23),decoration:BoxDecoration(
       borderRadius:BorderRadius.circular(24),border:Border.all(color:Colors.white10),
@@ -78,7 +93,7 @@ class _ProjectsPageState extends State<ProjectsPage>{
   Future<void> load() async {
     final name=user.text.trim();
     if(name.isEmpty){setState(()=>error='أدخل اسم مستخدم GitHub.');return;}
-    setState(()=>{loading=true,error=null,searched=true});
+    setState(() { loading = true; error = null; searched = true; });
     try{
       final uri=Uri.https('api.github.com','/users/$name/repos',{'sort':'updated','per_page':'30','type':'owner'});
       final res=await http.get(uri,headers:const {'Accept':'application/vnd.github+json','User-Agent':'NEXUS-X-Android'}).timeout(const Duration(seconds:20));
@@ -117,7 +132,7 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
   @override void dispose(){owner.dispose();repo.dispose();super.dispose();}
   Future<void> load()async{
     if(owner.text.trim().isEmpty||repo.text.trim().isEmpty){setState(()=>error='أدخل المالك واسم المستودع.');return;}
-    setState(()=>{loading=true,checked=true,error=null,run=null});
+    setState(() { loading = true; checked = true; error = null; run = null; });
     try{
       final uri=Uri.https('api.github.com','/repos/${owner.text.trim()}/${repo.text.trim()}/actions/runs',{'per_page':'1'});
       final res=await http.get(uri,headers:const {'Accept':'application/vnd.github+json','User-Agent':'NEXUS-X-Android'}).timeout(const Duration(seconds:20));
