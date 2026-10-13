@@ -161,7 +161,7 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
     final result=status!='completed'?(status=='in_progress'?'قيد التنفيذ':status=='queued'?'في الانتظار':status):conclusionText(conclusion);
     return Card(color:panel,child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Row(children:[Icon(status=='completed'&&conclusion=='success'?Icons.check_circle:status=='completed'?Icons.error:Icons.pending,color:color),const SizedBox(width:8),Expanded(child:Text(r['name']?.toString()??'GitHub Actions',style:const TextStyle(fontWeight:FontWeight.bold)))]),
-      const SizedBox(height:12),_row('النتيجة',result,color),_row('رقم التشغيل', '#\${r['run_number']?.toString() ?? '—'}', Colors.white70),
+      const SizedBox(height:12),_row('النتيجة',result,color),_row('رقم التشغيل', '#${r['run_number']?.toString() ?? '—'}', Colors.white70),
       _row('الفرع',r['head_branch']?.toString()??'—',Colors.white70),_row('الحدث',r['event']?.toString()??'—',Colors.white70),
       if((r['html_url']?.toString()??'').isNotEmpty)OutlinedButton.icon(onPressed:()=>openExternal(r['html_url'].toString()),icon:const Icon(Icons.open_in_new),label:const Text('عرض سجل GitHub'))
     ])));
