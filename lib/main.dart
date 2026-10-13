@@ -34,7 +34,7 @@ class _NexusHomeState extends State<NexusHome> {
     child: Scaffold(body: SafeArea(child: Column(children: [
       Padding(padding: const EdgeInsets.all(18), child: Row(children: [
         Container(width: 44,height: 44,decoration: BoxDecoration(gradient: const LinearGradient(colors:[blue,purple]),borderRadius: BorderRadius.circular(14)),child: const Icon(Icons.hub_rounded)),
-        const SizedBox(width: 12),const Expanded(child: Text('NEXUS X\nSMART DEVELOPMENT',style: TextStyle(fontWeight: FontWeight.bold))),
+        const SizedBox(width: 12),const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,children: [Text('NEXUS X',style: TextStyle(fontWeight: FontWeight.bold)),Text('SMART DEVELOPMENT',style: TextStyle(fontSize: 9,color: Colors.white54,letterSpacing: 1.2))])),
       ])),
       Expanded(child: selected == 1 ? const ProjectsPage()
         : selected == 3 ? const CloudBuildPage()
