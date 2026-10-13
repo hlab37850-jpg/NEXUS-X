@@ -115,7 +115,7 @@ class _ProjectsPageState extends State<ProjectsPage>{
     ...repos.map((r){
       final repoName=r['name']?.toString()??'مستودع';
       final desc=r['description']?.toString();
-      final details=(desc==null||desc.isEmpty?'لا يوجد وصف':desc)+'\n'+(r['language']?.toString()??'لغة غير محددة')+' • ★ '+(r['stargazers_count']?.toString()??'0');
+      final details = '${desc == null || desc.isEmpty ? 'لا يوجد وصف' : desc}\n${r['language']?.toString() ?? 'لغة غير محددة'} • ★ ${r['stargazers_count']?.toString() ?? '0'}';
       return Card(color:panel,child:ListTile(leading:const Icon(Icons.code,color:blue),title:Text(repoName),subtitle:Text(details,maxLines:3,overflow:TextOverflow.ellipsis),trailing:IconButton(icon:const Icon(Icons.open_in_new),onPressed:()=>openExternal(r['html_url']?.toString()??''))));
     })
   ]);
@@ -178,7 +178,7 @@ class EmptyPage extends StatelessWidget{
 }
 InputDecoration field(String label,IconData icon)=>InputDecoration(labelText:label,prefixIcon:Icon(icon),filled:true,fillColor:panel,border:OutlineInputBorder(borderRadius:BorderRadius.circular(15)));
 Widget msg(String text,[bool isError=false])=>Padding(padding:const EdgeInsets.only(top:12),child:Container(width:double.infinity,padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:panel,borderRadius:BorderRadius.circular(14),border:Border.all(color:(isError?const Color(0xFFFF647C):blue).withValues(alpha:.4))),child:Text(text,style:TextStyle(color:isError?const Color(0xFFFF647C):blue))));
-String githubError(http.Response r){if(r.statusCode==404)return 'المستخدم أو المستودع غير موجود، أو أنه خاص.';if(r.statusCode==403||r.statusCode==429)return 'قيّد GitHub الطلبات مؤقتًا؛ حاول لاحقًا.';return 'تعذر الاتصال بـ GitHub (HTTP \${r.statusCode}).';}
+String githubError(http.Response r){if(r.statusCode==404)return 'المستخدم أو المستودع غير موجود، أو أنه خاص.';if(r.statusCode==403||r.statusCode==429)return 'قيّد GitHub الطلبات مؤقتًا؛ حاول لاحقًا.';return 'تعذر الاتصال بـ GitHub (HTTP ${r.statusCode}).';}
 String friendly(Object e)=>e.toString().replaceFirst('Exception: ','');
 String conclusionText(String? c)=>switch(c){'success'=>'نجاح','failure'=>'فشل','cancelled'=>'أُلغي','timed_out'=>'انتهت المهلة','action_required'=>'يتطلب إجراء','skipped'=>'تم تجاوزه',_=>c??'اكتمل دون نتيجة محددة'};
 Future<void> openExternal(String value)async{final uri=Uri.tryParse(value);if(uri!=null&&uri.hasScheme)await launchUrl(uri,mode:LaunchMode.externalApplication);}
