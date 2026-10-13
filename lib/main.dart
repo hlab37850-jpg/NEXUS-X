@@ -102,7 +102,7 @@ class _ProjectsPageState extends State<ProjectsPage>{
       if(data is! List) throw Exception('استجابة GitHub غير متوقعة.');
       if(!mounted)return;
       setState(()=>repos=data.whereType<Map<String,dynamic>>().toList());
-    }catch(e){if(mounted)setState(()=>{repos=[],error=friendly(e)});}
+    } catch (e) { if (mounted) setState(() { repos = []; error = friendly(e); }); }
     finally{if(mounted)setState(()=>loading=false);}
   }
   @override Widget build(BuildContext context)=>ListView(padding:const EdgeInsets.all(18),children:[
@@ -161,7 +161,7 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
     final result=status!='completed'?(status=='in_progress'?'قيد التنفيذ':status=='queued'?'في الانتظار':status):conclusionText(conclusion);
     return Card(color:panel,child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Row(children:[Icon(status=='completed'&&conclusion=='success'?Icons.check_circle:status=='completed'?Icons.error:Icons.pending,color:color),const SizedBox(width:8),Expanded(child:Text(r['name']?.toString()??'GitHub Actions',style:const TextStyle(fontWeight:FontWeight.bold)))]),
-      const SizedBox(height:12),_row('النتيجة',result,color),_row('رقم التشغيل','#'+(r['run_number']?.toString()??'—'),Colors.white70),
+      const SizedBox(height:12),_row('النتيجة',result,color),_row('رقم التشغيل', '#\${r['run_number']?.toString() ?? '—'}', Colors.white70),
       _row('الفرع',r['head_branch']?.toString()??'—',Colors.white70),_row('الحدث',r['event']?.toString()??'—',Colors.white70),
       if((r['html_url']?.toString()??'').isNotEmpty)OutlinedButton.icon(onPressed:()=>openExternal(r['html_url'].toString()),icon:const Icon(Icons.open_in_new),label:const Text('عرض سجل GitHub'))
     ])));
@@ -178,7 +178,7 @@ class EmptyPage extends StatelessWidget{
 }
 InputDecoration field(String label,IconData icon)=>InputDecoration(labelText:label,prefixIcon:Icon(icon),filled:true,fillColor:panel,border:OutlineInputBorder(borderRadius:BorderRadius.circular(15)));
 Widget msg(String text,[bool isError=false])=>Padding(padding:const EdgeInsets.only(top:12),child:Container(width:double.infinity,padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:panel,borderRadius:BorderRadius.circular(14),border:Border.all(color:(isError?const Color(0xFFFF647C):blue).withValues(alpha:.4))),child:Text(text,style:TextStyle(color:isError?const Color(0xFFFF647C):blue))));
-String githubError(http.Response r){if(r.statusCode==404)return 'المستخدم أو المستودع غير موجود، أو أنه خاص.';if(r.statusCode==403||r.statusCode==429)return 'قيّد GitHub الطلبات مؤقتًا؛ حاول لاحقًا.';return 'تعذر الاتصال بـ GitHub (HTTP '+r.statusCode.toString()+').';}
+String githubError(http.Response r){if(r.statusCode==404)return 'المستخدم أو المستودع غير موجود، أو أنه خاص.';if(r.statusCode==403||r.statusCode==429)return 'قيّد GitHub الطلبات مؤقتًا؛ حاول لاحقًا.';return 'تعذر الاتصال بـ GitHub (HTTP \${r.statusCode}).';}
 String friendly(Object e)=>e.toString().replaceFirst('Exception: ','');
 String conclusionText(String? c)=>switch(c){'success'=>'نجاح','failure'=>'فشل','cancelled'=>'أُلغي','timed_out'=>'انتهت المهلة','action_required'=>'يتطلب إجراء','skipped'=>'تم تجاوزه',_=>c??'اكتمل دون نتيجة محددة'};
 Future<void> openExternal(String value)async{final uri=Uri.tryParse(value);if(uri!=null&&uri.hasScheme)await launchUrl(uri,mode:LaunchMode.externalApplication);}
