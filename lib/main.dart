@@ -271,7 +271,7 @@ class _AiWorkspacePageState extends State<AiWorkspacePage> {
         style: TextStyle(color: Colors.white60, height: 1.5)),
       const SizedBox(height: 18),
       DropdownButtonFormField<String>(
-        value: task,
+        initialValue: task,
         isExpanded: true,
         decoration: field('نوع المهمة', Icons.auto_awesome),
         items: tasks.map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
