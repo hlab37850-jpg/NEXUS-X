@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -117,11 +118,35 @@ class _RepositoryDetailsPageState extends State<RepositoryDetailsPage> {
               style: const TextStyle(color: Colors.white60, height: 1.5)),
             const SizedBox(height: 8),
             Text('الفرع الافتراضي: ${widget.repository['default_branch']?.toString() ?? '—'}'),
-            OutlinedButton.icon(
-              onPressed: () => _open(widget.repository['html_url']?.toString() ?? ''),
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('فتح المستودع على GitHub'),
-            ),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              OutlinedButton.icon(
+                onPressed: () => _open(widget.repository['html_url']?.toString() ?? ''),
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('فتح المستودع'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final cloneUrl = widget.repository['clone_url']?.toString() ?? '';
+                  if (cloneUrl.isEmpty) return;
+                  await Clipboard.setData(ClipboardData(text: cloneUrl));
+                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تم نسخ رابط Git للمستودع.')),
+                  );
+                },
+                icon: const Icon(Icons.copy),
+                label: const Text('نسخ رابط Git'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _open('https://github.com/$name/issues'),
+                icon: const Icon(Icons.bug_report_outlined),
+                label: const Text('المشكلات'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _open('https://github.com/$name/pulls'),
+                icon: const Icon(Icons.merge_type),
+                label: const Text('طلبات الدمج'),
+              ),
+            ]),
             if (loading) const Center(child: Padding(
               padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
             if (error != null) _message(error!, true),
