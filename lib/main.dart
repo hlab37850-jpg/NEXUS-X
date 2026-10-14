@@ -166,12 +166,20 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
   ]);
   Widget _runCard(Map<String,dynamic> r){
     final status=r['status']?.toString()??'unknown';final conclusion=r['conclusion']?.toString();
+    final head = r['head_commit'] is Map ? Map<String, dynamic>.from(r['head_commit'] as Map) : <String, dynamic>{};
+    final commitMessage = head['message']?.toString().split('\n').first ?? '';
+    final sha = r['head_sha']?.toString() ?? '';
+    final created = DateTime.tryParse(r['created_at']?.toString() ?? '');
+    final createdLabel = created == null ? '—' : created.toLocal().toString().split('.').first;
     final color=status=='completed'?(conclusion=='success'?const Color(0xFF27C9A5):const Color(0xFFFF647C)):blue;
     final result=status!='completed'?(status=='in_progress'?'قيد التنفيذ':status=='queued'?'في الانتظار':status):conclusionText(conclusion);
     return Card(color:panel,child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Row(children:[Icon(status=='completed'&&conclusion=='success'?Icons.check_circle:status=='completed'?Icons.error:Icons.pending,color:color),const SizedBox(width:8),Expanded(child:Text(r['name']?.toString()??'GitHub Actions',style:const TextStyle(fontWeight:FontWeight.bold)))]),
       const SizedBox(height:12),_row('النتيجة',result,color),_row('رقم التشغيل', '#${r['run_number']?.toString() ?? '—'}', Colors.white70),
       _row('الفرع',r['head_branch']?.toString()??'—',Colors.white70),_row('الحدث',r['event']?.toString()??'—',Colors.white70),
+      _row('الالتزام',sha.isEmpty?'—':sha.substring(0,sha.length>7?7:sha.length),Colors.white70),
+      _row('وقت التشغيل',createdLabel,Colors.white70),
+      if(commitMessage.isNotEmpty) Padding(padding:const EdgeInsets.only(top:4,bottom:10),child:Text('رسالة الالتزام: $commitMessage',style:const TextStyle(color:Colors.white60,height:1.4))),
       if((r['html_url']?.toString()??'').isNotEmpty)OutlinedButton.icon(onPressed:()=>openExternal(r['html_url'].toString()),icon:const Icon(Icons.open_in_new),label:const Text('عرض سجل GitHub'))
     ])));
   }
@@ -185,7 +193,7 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
     return Card(color:panel,child:ListTile(
       leading: Icon(success ? Icons.check_circle : status == 'completed' ? Icons.error_outline : Icons.pending, color:color),
       title: Text('${item['name']?.toString() ?? 'GitHub Actions'} • #${item['run_number']?.toString() ?? '—'}'),
-      subtitle: Text('$label${sha.isNotEmpty ? ' • ${sha.substring(0, sha.length > 7 ? 7 : sha.length)}' : ''}'),
+      subtitle: Text('$label${sha.isNotEmpty ? ' • ${sha.substring(0, sha.length > 7 ? 7 : sha.length)}' : ''}${item['created_at'] != null ? ' • ${item['created_at'].toString().replaceFirst('T', ' ').replaceFirst('Z', '')}' : ''}'),
       trailing: const Icon(Icons.open_in_new,size:18),
       onTap: () => openExternal(item['html_url']?.toString() ?? ''),
     ));
