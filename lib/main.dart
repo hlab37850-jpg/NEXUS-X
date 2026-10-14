@@ -129,19 +129,19 @@ class CloudBuildPage extends StatefulWidget {
 class _CloudBuildPageState extends State<CloudBuildPage>{
   final owner=TextEditingController(text:'hlab37850-jpg');
   final repo=TextEditingController(text:'NEXUS-X');
-  Map<String,dynamic>? run;bool loading=false;bool checked=false;String? error;
+  Map<String,dynamic>? run; List<Map<String,dynamic>> recentRuns=[]; bool loading=false;bool checked=false;String? error;
   @override void dispose(){owner.dispose();repo.dispose();super.dispose();}
   Future<void> load()async{
     if(owner.text.trim().isEmpty||repo.text.trim().isEmpty){setState(()=>error='أدخل المالك واسم المستودع.');return;}
-    setState(() { loading = true; checked = true; error = null; run = null; });
+    setState(() { loading = true; checked = true; error = null; run = null; recentRuns = []; });
     try{
-      final uri=Uri.https('api.github.com','/repos/${owner.text.trim()}/${repo.text.trim()}/actions/runs',{'per_page':'1'});
+      final uri=Uri.https('api.github.com','/repos/${owner.text.trim()}/${repo.text.trim()}/actions/runs',{'per_page':'10'});
       final res=await http.get(uri,headers:const {'Accept':'application/vnd.github+json','User-Agent':'NEXUS-X-Android'}).timeout(const Duration(seconds:20));
       if(res.statusCode!=200)throw Exception(githubError(res));
       final data=jsonDecode(res.body);
       if(data is! Map<String,dynamic>)throw Exception('استجابة GitHub غير متوقعة.');
       final runs=data['workflow_runs'];
-      if(mounted)setState(()=>run=runs is List&&runs.isNotEmpty?Map<String,dynamic>.from(runs.first as Map):null);
+      if(mounted)setState(() { final list = runs is List ? runs.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList() : <Map<String, dynamic>>[]; run = list.isNotEmpty ? list.first : null; recentRuns = list.length > 1 ? list.skip(1).toList() : []; });
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
     finally{if(mounted)setState(()=>loading=false);}
   }
@@ -154,6 +154,12 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
     if(error!=null)msg(error!,true),
     if(checked&&!loading&&error==null&&run==null)msg('لا توجد تشغيلات بناء مسجلة لهذا المستودع.'),
     if(run!=null)_runCard(run!),
+    if(recentRuns.isNotEmpty) ...[
+      const SizedBox(height:18),
+      const Text('سجل عمليات البناء السابقة',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
+      const SizedBox(height:8),
+      ...recentRuns.map(_historyCard),
+    ],
     const SizedBox(height:12),
     OutlinedButton.icon(onPressed:()=>openExternal('https://github.com/${owner.text.trim()}/${repo.text.trim()}/actions/workflows/build.yml'),icon:const Icon(Icons.open_in_browser),label:const Text('فتح GitHub لتشغيل بناء جديد')),
     const Text('سجّل الدخول في GitHub ثم اختر Run workflow. لا تدخل رمز وصول في التطبيق؛ يلزم امتلاك المستودع أو صلاحية Actions.',style:TextStyle(color:Colors.white38,fontSize:12,height:1.5))
@@ -168,6 +174,21 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
       _row('الفرع',r['head_branch']?.toString()??'—',Colors.white70),_row('الحدث',r['event']?.toString()??'—',Colors.white70),
       if((r['html_url']?.toString()??'').isNotEmpty)OutlinedButton.icon(onPressed:()=>openExternal(r['html_url'].toString()),icon:const Icon(Icons.open_in_new),label:const Text('عرض سجل GitHub'))
     ])));
+  }
+  Widget _historyCard(Map<String,dynamic> item) {
+    final status = item['status']?.toString() ?? 'unknown';
+    final conclusion = item['conclusion']?.toString();
+    final success = status == 'completed' && conclusion == 'success';
+    final color = success ? const Color(0xFF27C9A5) : status == 'completed' ? const Color(0xFFFF647C) : blue;
+    final label = status != 'completed' ? (status == 'in_progress' ? 'قيد التنفيذ' : status == 'queued' ? 'في الانتظار' : status) : conclusionText(conclusion);
+    final sha = item['head_sha']?.toString() ?? '';
+    return Card(color:panel,child:ListTile(
+      leading: Icon(success ? Icons.check_circle : status == 'completed' ? Icons.error_outline : Icons.pending, color:color),
+      title: Text('${item['name']?.toString() ?? 'GitHub Actions'} • #${item['run_number']?.toString() ?? '—'}'),
+      subtitle: Text('$label${sha.isNotEmpty ? ' • ${sha.substring(0, sha.length > 7 ? 7 : sha.length)}' : ''}'),
+      trailing: const Icon(Icons.open_in_new,size:18),
+      onTap: () => openExternal(item['html_url']?.toString() ?? ''),
+    ));
   }
   Widget _row(String label,String value,Color color)=>Padding(padding:const EdgeInsets.only(bottom:8),child:Row(children:[SizedBox(width:90,child:Text(label,style:const TextStyle(color:Colors.white54))),Expanded(child:Text(value,style:TextStyle(color:color)))]));
 }
