@@ -90,8 +90,23 @@ class ProjectsPage extends StatefulWidget {
 }
 class _ProjectsPageState extends State<ProjectsPage>{
   final user=TextEditingController(text:'hlab37850-jpg');
+  final filter=TextEditingController();
   List<Map<String,dynamic>> repos=[]; bool loading=false; bool searched=false; String? error;
-  @override void dispose(){user.dispose();super.dispose();}
+  String sortBy='آخر تحديث';
+  @override void dispose(){user.dispose();filter.dispose();super.dispose();}
+  List<Map<String,dynamic>> get visibleRepos {
+    final q=filter.text.trim().toLowerCase();
+    final result=repos.where((r) {
+      if(q.isEmpty)return true;
+      final name=r['name']?.toString().toLowerCase()??'';
+      final desc=r['description']?.toString().toLowerCase()??'';
+      final language=r['language']?.toString().toLowerCase()??'';
+      return name.contains(q)||desc.contains(q)||language.contains(q);
+    }).toList();
+    if(sortBy=='الأكثر نجومًا') result.sort((a,b)=>(b['stargazers_count'] as num? ?? 0).compareTo(a['stargazers_count'] as num? ?? 0));
+    if(sortBy=='الاسم أبجديًا') result.sort((a,b)=>(a['name']?.toString()??'').toLowerCase().compareTo((b['name']?.toString()??'').toLowerCase()));
+    return result;
+  }
   Future<void> load() async {
     final name=user.text.trim();
     if(name.isEmpty){setState(()=>error='أدخل اسم مستخدم GitHub.');return;}
@@ -112,9 +127,14 @@ class _ProjectsPageState extends State<ProjectsPage>{
     const SizedBox(height:8),const Text('بيانات عامة مباشرة من GitHub. المستودعات الخاصة تتطلب مصادقة آمنة غير مفعّلة بعد.',style:TextStyle(color:Colors.white60,height:1.5)),
     const SizedBox(height:16),TextField(controller:user,textDirection:TextDirection.ltr,decoration:field('اسم مستخدم GitHub',Icons.person),onSubmitted:(_)=>load()),
     const SizedBox(height:10),FilledButton.icon(onPressed:loading?null:load,icon:loading?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.sync),label:Text(loading?'جارٍ الاتصال...':'جلب المستودعات')),
+    const SizedBox(height:14),
+    TextField(controller:filter,decoration:field('بحث بالاسم أو الوصف أو اللغة',Icons.search).copyWith(suffixIcon:filter.text.isEmpty?null:IconButton(icon:const Icon(Icons.clear),onPressed:()=>setState(()=>filter.clear()))),onChanged:(_)=>setState((){})),
+    const SizedBox(height:10),
+    DropdownButtonFormField<String>(initialValue:sortBy,decoration:field('ترتيب النتائج',Icons.sort),items:const [DropdownMenuItem(value:'آخر تحديث',child:Text('آخر تحديث')),DropdownMenuItem(value:'الأكثر نجومًا',child:Text('الأكثر نجومًا')),DropdownMenuItem(value:'الاسم أبجديًا',child:Text('الاسم أبجديًا'))],onChanged:(v)=>setState(()=>sortBy=v??'آخر تحديث')),
     if(error!=null) msg(error!,true),
     if(searched&&!loading&&error==null&&repos.isEmpty) const Padding(padding:EdgeInsets.all(20),child:Text('لا توجد مستودعات عامة ظاهرة لهذا المستخدم.',textAlign:TextAlign.center)),
-    ...repos.map((r){
+    if(repos.isNotEmpty&&visibleRepos.isEmpty) const Padding(padding:EdgeInsets.all(20),child:Text('لا توجد نتائج تطابق البحث.',textAlign:TextAlign.center)),
+    ...visibleRepos.map((r){
       final repoName=r['name']?.toString()??'مستودع';
       final desc=r['description']?.toString();
       final details = '${desc == null || desc.isEmpty ? 'لا يوجد وصف' : desc}\n${r['language']?.toString() ?? 'لغة غير محددة'} • ★ ${r['stargazers_count']?.toString() ?? '0'}';
@@ -130,11 +150,11 @@ class CloudBuildPage extends StatefulWidget {
 class _CloudBuildPageState extends State<CloudBuildPage>{
   final owner=TextEditingController(text:'hlab37850-jpg');
   final repo=TextEditingController(text:'NEXUS-X');
-  Map<String,dynamic>? run; List<Map<String,dynamic>> recentRuns=[]; bool loading=false;bool checked=false;String? error;
+  Map<String,dynamic>? run; List<Map<String,dynamic>> recentRuns=[]; List<Map<String,dynamic>> jobs=[]; bool jobsLoading=false; String? jobsError; bool loading=false;bool checked=false;String? error;
   @override void dispose(){owner.dispose();repo.dispose();super.dispose();}
   Future<void> load()async{
     if(owner.text.trim().isEmpty||repo.text.trim().isEmpty){setState(()=>error='أدخل المالك واسم المستودع.');return;}
-    setState(() { loading = true; checked = true; error = null; run = null; recentRuns = []; });
+    setState(() { loading = true; checked = true; error = null; run = null; recentRuns = []; jobs = []; jobsError = null; jobsLoading = false; });
     try{
       final uri=Uri.https('api.github.com','/repos/${owner.text.trim()}/${repo.text.trim()}/actions/runs',{'per_page':'10'});
       final res=await http.get(uri,headers:const {'Accept':'application/vnd.github+json','User-Agent':'NEXUS-X-Android'}).timeout(const Duration(seconds:20));
@@ -142,9 +162,25 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
       final data=jsonDecode(res.body);
       if(data is! Map<String,dynamic>)throw Exception('استجابة GitHub غير متوقعة.');
       final runs=data['workflow_runs'];
-      if(mounted)setState(() { final list = runs is List ? runs.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList() : <Map<String, dynamic>>[]; run = list.isNotEmpty ? list.first : null; recentRuns = list.length > 1 ? list.skip(1).toList() : []; });
+      final list = runs is List ? runs.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList() : <Map<String, dynamic>>[];
+      if(mounted)setState(() { run = list.isNotEmpty ? list.first : null; recentRuns = list.length > 1 ? list.skip(1).toList() : []; });
+      if(list.isNotEmpty && list.first['id'] != null) await loadJobDetails(list.first['id']);
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
     finally{if(mounted)setState(()=>loading=false);}
+  }
+  Future<void> loadJobDetails(Object runId) async {
+    if(!mounted)return;
+    setState(() { jobsLoading=true; jobsError=null; jobs=[]; });
+    try {
+      final uri=Uri.https('api.github.com','/repos/${owner.text.trim()}/${repo.text.trim()}/actions/runs/$runId/jobs',{'per_page':'50'});
+      final res=await http.get(uri,headers:const {'Accept':'application/vnd.github+json','User-Agent':'NEXUS-X-Android'}).timeout(const Duration(seconds:20));
+      if(res.statusCode!=200)throw Exception(githubError(res));
+      final data=jsonDecode(res.body);
+      if(data is! Map<String,dynamic>)throw Exception('استجابة تفاصيل البناء غير متوقعة.');
+      final raw=data['jobs'];
+      if(mounted)setState(()=>jobs=raw is List?raw.whereType<Map>().map((item)=>Map<String,dynamic>.from(item)).toList():<Map<String,dynamic>>[]);
+    } catch(e) { if(mounted)setState(()=>jobsError=friendly(e)); }
+    finally { if(mounted)setState(()=>jobsLoading=false); }
   }
   @override Widget build(BuildContext context)=>ListView(padding:const EdgeInsets.all(18),children:[
     const Text('البناء السحابي',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
@@ -155,6 +191,14 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
     if(error!=null)msg(error!,true),
     if(checked&&!loading&&error==null&&run==null)msg('لا توجد تشغيلات بناء مسجلة لهذا المستودع.'),
     if(run!=null)_runCard(run!),
+    if(jobsLoading) const Padding(padding:EdgeInsets.all(18),child:Center(child:CircularProgressIndicator())),
+    if(jobsError!=null) msg('تعذر تحميل خطوات البناء: $jobsError',true),
+    if(jobs.isNotEmpty) ...[
+      const SizedBox(height:14),
+      const Text('تفاصيل الوظائف والخطوات',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
+      const SizedBox(height:8),
+      ...jobs.map(_jobCard),
+    ],
     if(recentRuns.isNotEmpty) ...[
       const SizedBox(height:18),
       const Text('سجل عمليات البناء السابقة',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
@@ -183,6 +227,28 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
       if(commitMessage.isNotEmpty) Padding(padding:const EdgeInsets.only(top:4,bottom:10),child:Text('رسالة الالتزام: $commitMessage',style:const TextStyle(color:Colors.white60,height:1.4))),
       if((r['html_url']?.toString()??'').isNotEmpty)OutlinedButton.icon(onPressed:()=>openExternal(r['html_url'].toString()),icon:const Icon(Icons.open_in_new),label:const Text('عرض سجل GitHub'))
     ])));
+  }
+  Widget _jobCard(Map<String,dynamic> job) {
+    final status=job['status']?.toString()??'unknown';
+    final conclusion=job['conclusion']?.toString();
+    final success=status=='completed'&&conclusion=='success';
+    final color=success?const Color(0xFF27C9A5):status=='completed'?const Color(0xFFFF647C):blue;
+    final label=status!='completed'?(status=='in_progress'?'قيد التنفيذ':status=='queued'?'في الانتظار':status):conclusionText(conclusion);
+    final steps=job['steps'] is List?(job['steps'] as List).whereType<Map>().toList():<Map>[];
+    return Card(color:panel,child:ExpansionTile(
+      leading:Icon(success?Icons.check_circle:status=='completed'?Icons.error_outline:Icons.pending,color:color),
+      title:Text(job['name']?.toString()??'وظيفة بناء'),
+      subtitle:Text('$label • ${steps.length} خطوة'),
+      children:steps.map((raw) {
+        final step=Map<String,dynamic>.from(raw);
+        final stepStatus=step['status']?.toString()??'unknown';
+        final stepConclusion=step['conclusion']?.toString();
+        final stepSuccess=stepStatus=='completed'&&stepConclusion=='success';
+        final stepColor=stepSuccess?const Color(0xFF27C9A5):stepStatus=='completed'?const Color(0xFFFF647C):blue;
+        final stepLabel=stepStatus!='completed'?(stepStatus=='in_progress'?'قيد التنفيذ':stepStatus=='queued'?'في الانتظار':stepStatus):conclusionText(stepConclusion);
+        return ListTile(dense:true,leading:Icon(stepSuccess?Icons.check_circle_outline:stepStatus=='completed'?Icons.cancel_outlined:Icons.more_time,color:stepColor,size:20),title:Text(step['name']?.toString()??'خطوة'),subtitle:Text(stepLabel),trailing:step['number'] is num?Text('#${step['number']}'):null);
+      }).toList(),
+    ));
   }
   Widget _historyCard(Map<String,dynamic> item) {
     final status = item['status']?.toString() ?? 'unknown';
