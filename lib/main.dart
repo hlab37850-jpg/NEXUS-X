@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'repository_details_page.dart';
@@ -39,8 +40,8 @@ class _NexusHomeState extends State<NexusHome> {
       ])),
       Expanded(child: selected == 1 ? const ProjectsPage()
         : selected == 3 ? const CloudBuildPage()
-        : selected == 2 ? const EmptyPage(icon: Icons.auto_awesome,title:'الذكاء الاصطناعي',message:'لم يتم ربط مزود ذكاء اصطناعي بعد. ستضاف المصادقة الآمنة في مرحلة مستقلة.')
-        : selected == 4 ? const EmptyPage(icon: Icons.settings,title:'الإعدادات',message:'إعدادات الحساب والاتصال ستضاف بعد تجهيز التكاملات الآمنة.')
+        : selected == 2 ? const AiWorkspacePage()
+        : selected == 4 ? const SettingsPage()
         : _home()),
       Container(
         color: const Color(0xFF0D1422),
@@ -199,6 +200,171 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
     ));
   }
   Widget _row(String label,String value,Color color)=>Padding(padding:const EdgeInsets.only(bottom:8),child:Row(children:[SizedBox(width:90,child:Text(label,style:const TextStyle(color:Colors.white54))),Expanded(child:Text(value,style:TextStyle(color:color)))]));
+}
+
+
+class AiWorkspacePage extends StatefulWidget {
+  const AiWorkspacePage({super.key});
+  @override
+  State<AiWorkspacePage> createState() => _AiWorkspacePageState();
+}
+
+class _AiWorkspacePageState extends State<AiWorkspacePage> {
+  final goal = TextEditingController();
+  final constraints = TextEditingController(
+    text: 'حافظ على التصميم الحالي، لا تحذف الميزات الموجودة، لا تضف بيانات تجريبية، واختبر التغييرات قبل اعتمادها.',
+  );
+  String task = 'إصلاح أخطاء البناء';
+  bool generated = false;
+  final tasks = const [
+    'إصلاح أخطاء البناء',
+    'إضافة ميزة جديدة',
+    'مراجعة مشروع Flutter',
+    'تحليل واجهة من صورة',
+    'إصلاح مشكلة تسجيل الدخول',
+    'اختبارات وضمان الجودة',
+  ];
+
+  @override
+  void dispose() {
+    goal.dispose();
+    constraints.dispose();
+    super.dispose();
+  }
+
+  String get prompt => '''
+أنت مهندس برمجيات خبير تعمل على مشروع قائم، وليس مشروعًا جديدًا.
+المهمة: \${task}
+وصف المطلوب:
+\${goal.text.trim()}
+شروط إلزامية:
+\${constraints.text.trim()}
+
+طريقة التنفيذ:
+1. افحص ملفات المشروع وسجل الأخطاء قبل التعديل.
+2. حدد السبب الجذري بدقة، ولا تخمّن ولا تخفِ الأخطاء.
+3. نفّذ التغيير بأقل نطاق ممكن مع الحفاظ على البنية والتصميم والميزات الحالية.
+4. لا تستخدم بيانات وهمية أو مفاتيح API أو رموز وصول سرية داخل التطبيق.
+5. أضف أو حدّث الاختبارات المناسبة.
+6. شغّل flutter pub get ثم flutter analyze ثم flutter test ثم flutter build apk --debug.
+7. لا تعلن النجاح إلا بعد نجاح كل خطوة، واذكر الملفات التي تغيرت ونتائج الأوامر الفعلية.
+8. إذا تعذّر تنفيذ خطوة، اذكر السبب بوضوح ولا تدّعِ اكتمال المهمة.
+'''.trim();
+
+  Future<void> copyPrompt() async {
+    await Clipboard.setData(ClipboardData(text: prompt));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم نسخ التعليمات. الصقها في نموذج الذكاء الاصطناعي الذي تستخدمه.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(18),
+    children: [
+      const Text('مساحة الذكاء الاصطناعي',
+        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      const Text(
+        'أنشئ تعليمات دقيقة لمهمة التطوير وانسخها إلى مزود الذكاء الاصطناعي الذي تختاره. هذه الصفحة لا تدّعي الاتصال بنموذج خارجي.',
+        style: TextStyle(color: Colors.white60, height: 1.5)),
+      const SizedBox(height: 18),
+      DropdownButtonFormField<String>(
+        value: task,
+        isExpanded: true,
+        decoration: field('نوع المهمة', Icons.auto_awesome),
+        items: tasks.map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
+        onChanged: (value) => setState(() { if (value != null) task = value; generated = false; }),
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: goal,
+        minLines: 3,
+        maxLines: 6,
+        decoration: field('اشرح المطلوب بالتفصيل', Icons.edit_note).copyWith(
+          hintText: 'مثال: أصلح سبب فشل البناء دون تغيير تصميم الشاشات.',
+          alignLabelWithHint: true,
+        ),
+        onChanged: (_) { if (generated) setState(() => generated = false); },
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: constraints,
+        minLines: 3,
+        maxLines: 6,
+        decoration: field('القيود التي يجب احترامها', Icons.rule).copyWith(alignLabelWithHint: true),
+        onChanged: (_) { if (generated) setState(() => generated = false); },
+      ),
+      const SizedBox(height: 12),
+      FilledButton.icon(
+        onPressed: goal.text.trim().isEmpty ? null : () => setState(() => generated = true),
+        icon: const Icon(Icons.auto_awesome),
+        label: const Text('إنشاء التعليمات'),
+      ),
+      if (generated) ...[
+        const SizedBox(height: 18),
+        const Text('التعليمات الجاهزة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(14)),
+          child: SelectableText(prompt, style: const TextStyle(height: 1.5)),
+        ),
+        const SizedBox(height: 10),
+        FilledButton.icon(onPressed: copyPrompt, icon: const Icon(Icons.copy), label: const Text('نسخ التعليمات')),
+      ],
+    ],
+  );
+}
+
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    padding: const EdgeInsets.all(18),
+    children: [
+      const Text('الإعدادات والمعلومات', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      const Text('روابط المشروع والخصوصية وحدود التكاملات الحالية.',
+        style: TextStyle(color: Colors.white60, height: 1.5)),
+      const SizedBox(height: 16),
+      Card(color: panel, child: const ListTile(
+        leading: Icon(Icons.hub, color: blue),
+        title: Text('NEXUS X'),
+        subtitle: Text('الإصدار 1.0.0 • تطبيق Flutter عربي RTL'),
+      )),
+      Card(color: panel, child: const ListTile(
+        leading: Icon(Icons.shield_outlined, color: blue),
+        title: Text('الخصوصية والأمان'),
+        subtitle: Text('لا يخزّن التطبيق رمز GitHub شخصيًا ولا يرسل بيانات إلى نموذج ذكاء اصطناعي. استعلامات المستودعات العامة تُرسل إلى واجهة GitHub API.'),
+        isThreeLine: true,
+      )),
+      Card(color: panel, child: ListTile(
+        leading: const Icon(Icons.code, color: blue),
+        title: const Text('مستودع التطبيق'),
+        subtitle: const Text('hlab37850-jpg/NEXUS-X'),
+        trailing: const Icon(Icons.open_in_new),
+        onTap: () => openExternal('https://github.com/hlab37850-jpg/NEXUS-X'),
+      )),
+      Card(color: panel, child: ListTile(
+        leading: const Icon(Icons.cloud_done, color: blue),
+        title: const Text('عمليات البناء السحابي'),
+        subtitle: const Text('عرض السجل وإدارة تشغيلات GitHub Actions'),
+        trailing: const Icon(Icons.open_in_new),
+        onTap: () => openExternal('https://github.com/hlab37850-jpg/NEXUS-X/actions'),
+      )),
+      Card(color: panel, child: ListTile(
+        leading: const Icon(Icons.bug_report_outlined, color: blue),
+        title: const Text('الإبلاغ عن مشكلة'),
+        subtitle: const Text('فتح صفحة المشكلات في GitHub'),
+        trailing: const Icon(Icons.open_in_new),
+        onTap: () => openExternal('https://github.com/hlab37850-jpg/NEXUS-X/issues/new'),
+      )),
+      msg('المستودعات الخاصة وتشغيل البناء من داخل التطبيق يحتاجان إلى مصادقة آمنة وصلاحيات GitHub. لا تضع رمز وصول شخصيًا داخل التطبيق.'),
+    ],
+  );
 }
 
 class EmptyPage extends StatelessWidget{
