@@ -22,6 +22,7 @@ class _RepositoryDetailsPageState extends State<RepositoryDetailsPage> {
   List<Map<String, dynamic>> branches = [];
   List<Map<String, dynamic>> commits = [];
   List<Map<String, dynamic>> entries = [];
+  String currentPath = '';
 
   @override
   void initState() {
@@ -29,9 +30,9 @@ class _RepositoryDetailsPageState extends State<RepositoryDetailsPage> {
     refresh();
   }
 
-  Future<List<Map<String, dynamic>>> _list(String path) async {
+  Future<List<Map<String, dynamic>>> _list(String path, [Map<String, String>? query]) async {
     final response = await http.get(
-      Uri.https('api.github.com', path),
+      Uri.https('api.github.com', path, query),
       headers: const {
         'Accept': 'application/vnd.github+json',
         'User-Agent': 'NEXUS-X-Android',
@@ -60,9 +61,9 @@ class _RepositoryDetailsPageState extends State<RepositoryDetailsPage> {
     }
     try {
       final result = await Future.wait([
-        _list('/repos/$name/branches?per_page=20'),
-        _list('/repos/$name/commits?per_page=10'),
-        _list('/repos/$name/contents'),
+        _list('/repos/$name/branches', {'per_page': '20'}),
+        _list('/repos/$name/commits', {'per_page': '10'}),
+        _list('/repos/$name/contents${currentPath.isEmpty ? '' : '/$currentPath'}'),
       ]);
       if (!mounted) return;
       setState(() {
@@ -70,6 +71,20 @@ class _RepositoryDetailsPageState extends State<RepositoryDetailsPage> {
         commits = result[1];
         entries = result[2];
       });
+    } catch (e) {
+      if (mounted) setState(() => error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> _loadDirectory(String path) async {
+    final name = widget.repository['full_name']?.toString() ?? '';
+    setState(() { loading = true; error = null; });
+    try {
+      final nextEntries = await _list('/repos/$name/contents${path.isEmpty ? '' : '/$path'}');
+      if (!mounted) return;
+      setState(() { currentPath = path; entries = nextEntries; });
     } catch (e) {
       if (mounted) setState(() => error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -138,15 +153,30 @@ class _RepositoryDetailsPageState extends State<RepositoryDetailsPage> {
                   ),
                 );
               }),
-              _heading('ملفات ومجلدات الجذر', entries.length),
+              _heading(currentPath.isEmpty ? 'ملفات ومجلدات الجذر' : currentPath, entries.length),
+              if (currentPath.isNotEmpty) Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _loadDirectory(currentPath.contains('/') ? currentPath.substring(0, currentPath.lastIndexOf('/')) : ''),
+                  icon: const Icon(Icons.arrow_upward),
+                  label: const Text('المجلد السابق'),
+                ),
+              ),
               if (entries.isEmpty) _muted('لا توجد ملفات ظاهرة.'),
               ...entries.map((entry) => ListTile(
                 dense: true,
                 leading: Icon(entry['type'] == 'dir' ? Icons.folder : Icons.insert_drive_file,
                   color: entry['type'] == 'dir' ? _pageBlue : Colors.white54),
                 title: Text(entry['name']?.toString() ?? 'عنصر', textDirection: TextDirection.ltr),
-                trailing: const Icon(Icons.open_in_new, size: 16),
-                onTap: () => _open(entry['html_url']?.toString() ?? ''),
+                trailing: Icon(entry['type'] == 'dir' ? Icons.chevron_left : Icons.open_in_new, size: 16),
+                onTap: () {
+                  final entryName = entry['name']?.toString() ?? '';
+                  if (entry['type'] == 'dir' && entryName.isNotEmpty) {
+                    _loadDirectory(currentPath.isEmpty ? entryName : '$currentPath/$entryName');
+                  } else {
+                    _open(entry['html_url']?.toString() ?? '');
+                  }
+                },
               )),
             ],
             const SizedBox(height: 12),
