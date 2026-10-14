@@ -150,11 +150,11 @@ class CloudBuildPage extends StatefulWidget {
 class _CloudBuildPageState extends State<CloudBuildPage>{
   final owner=TextEditingController(text:'hlab37850-jpg');
   final repo=TextEditingController(text:'NEXUS-X');
-  Map<String,dynamic>? run; List<Map<String,dynamic>> recentRuns=[]; List<Map<String,dynamic>> jobs=[]; bool jobsLoading=false; String? jobsError; bool loading=false;bool checked=false;String? error;
+  Map<String,dynamic>? run; List<Map<String,dynamic>> recentRuns=[]; List<Map<String,dynamic>> jobs=[]; List<Map<String,dynamic>> artifacts=[]; bool artifactsLoading=false; String? artifactsError; bool jobsLoading=false; String? jobsError; bool loading=false;bool checked=false;String? error;
   @override void dispose(){owner.dispose();repo.dispose();super.dispose();}
   Future<void> load()async{
     if(owner.text.trim().isEmpty||repo.text.trim().isEmpty){setState(()=>error='أدخل المالك واسم المستودع.');return;}
-    setState(() { loading = true; checked = true; error = null; run = null; recentRuns = []; jobs = []; jobsError = null; jobsLoading = false; });
+    setState(() { loading = true; checked = true; error = null; run = null; recentRuns = []; jobs = []; artifacts = []; artifactsError = null; artifactsLoading = false; jobsError = null; jobsLoading = false; });
     try{
       final uri=Uri.https('api.github.com','/repos/${owner.text.trim()}/${repo.text.trim()}/actions/runs',{'per_page':'10'});
       final res=await http.get(uri,headers:const {'Accept':'application/vnd.github+json','User-Agent':'NEXUS-X-Android'}).timeout(const Duration(seconds:20));
@@ -164,7 +164,10 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
       final runs=data['workflow_runs'];
       final list = runs is List ? runs.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList() : <Map<String, dynamic>>[];
       if(mounted)setState(() { run = list.isNotEmpty ? list.first : null; recentRuns = list.length > 1 ? list.skip(1).toList() : []; });
-      if(list.isNotEmpty && list.first['id'] != null) await loadJobDetails(list.first['id']);
+      if(list.isNotEmpty && list.first['id'] != null) {
+        await loadJobDetails(list.first['id']);
+        await loadArtifacts(list.first['id']);
+      }
     }catch(e){if(mounted)setState(()=>error=friendly(e));}
     finally{if(mounted)setState(()=>loading=false);}
   }
@@ -182,6 +185,20 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
     } catch(e) { if(mounted)setState(()=>jobsError=friendly(e)); }
     finally { if(mounted)setState(()=>jobsLoading=false); }
   }
+  Future<void> loadArtifacts(Object runId) async {
+    if(!mounted)return;
+    setState(() { artifactsLoading=true; artifactsError=null; artifacts=[]; });
+    try {
+      final uri=Uri.https('api.github.com','/repos/${owner.text.trim()}/${repo.text.trim()}/actions/runs/$runId/artifacts',{'per_page':'50'});
+      final res=await http.get(uri,headers:const {'Accept':'application/vnd.github+json','User-Agent':'NEXUS-X-Android'}).timeout(const Duration(seconds:20));
+      if(res.statusCode!=200)throw Exception(githubError(res));
+      final data=jsonDecode(res.body);
+      if(data is! Map<String,dynamic>)throw Exception('استجابة ملفات البناء غير متوقعة.');
+      final raw=data['artifacts'];
+      if(mounted)setState(()=>artifacts=raw is List?raw.whereType<Map>().map((item)=>Map<String,dynamic>.from(item)).toList():<Map<String,dynamic>>[]);
+    } catch(e) { if(mounted)setState(()=>artifactsError=friendly(e)); }
+    finally { if(mounted)setState(()=>artifactsLoading=false); }
+  }
   @override Widget build(BuildContext context)=>ListView(padding:const EdgeInsets.all(18),children:[
     const Text('البناء السحابي',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
     const SizedBox(height:8),const Text('قراءة مباشرة لآخر تشغيل GitHub Actions، دون سجل وهمي أو تخزين لرموز الدخول.',style:TextStyle(color:Colors.white60,height:1.5)),
@@ -198,6 +215,14 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
       const Text('تفاصيل الوظائف والخطوات',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
       const SizedBox(height:8),
       ...jobs.map(_jobCard),
+    ],
+    if(artifactsLoading) const Padding(padding:EdgeInsets.all(14),child:Center(child:CircularProgressIndicator())),
+    if(artifactsError!=null) msg('تعذر تحميل ملفات البناء: $artifactsError',true),
+    if(artifacts.isNotEmpty) ...[
+      const SizedBox(height:14),
+      const Text('ملفات البناء الناتجة',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
+      const SizedBox(height:8),
+      ...artifacts.map(_artifactCard),
     ],
     if(recentRuns.isNotEmpty) ...[
       const SizedBox(height:18),
@@ -250,6 +275,20 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
       }).toList(),
     ));
   }
+  Widget _artifactCard(Map<String,dynamic> artifact) {
+    final expired=artifact['expired']==true;
+    final size=artifact['size_in_bytes'] is num ? (artifact['size_in_bytes'] as num).toDouble() : 0.0;
+    final sizeLabel=size>=1024*1024?'${(size/(1024*1024)).toStringAsFixed(1)} MB':size>=1024?'${(size/1024).toStringAsFixed(0)} KB':'${size.toStringAsFixed(0)} bytes';
+    final expires=DateTime.tryParse(artifact['expires_at']?.toString()??'');
+    final expiryLabel=expires==null?'مدة الاحتفاظ غير معروفة':'ينتهي في ${expires.toLocal().toString().split(' ').first}';
+    return Card(color:panel,child:ListTile(
+      leading:Icon(expired?Icons.inventory_2_outlined:Icons.android,color:expired?Colors.white38:const Color(0xFF27C9A5)),
+      title:Text(artifact['name']?.toString()??'ملف بناء'),
+      subtitle:Text('$sizeLabel • ${expired?'انتهت الصلاحية':expiryLabel}'),
+      trailing:Icon(expired?Icons.block:Icons.download_outlined,color:expired?Colors.white38:blue),
+      onTap:expired?null:()=>openExternal(run?['html_url']?.toString()??'https://github.com/${owner.text.trim()}/${repo.text.trim()}/actions'),
+    ));
+  }
   Widget _historyCard(Map<String,dynamic> item) {
     final status = item['status']?.toString() ?? 'unknown';
     final conclusion = item['conclusion']?.toString();
@@ -300,11 +339,11 @@ class _AiWorkspacePageState extends State<AiWorkspacePage> {
 
   String get prompt => '''
 أنت مهندس برمجيات خبير تعمل على مشروع قائم، وليس مشروعًا جديدًا.
-المهمة: \${task}
+المهمة: ${task}
 وصف المطلوب:
-\${goal.text.trim()}
+${goal.text.trim()}
 شروط إلزامية:
-\${constraints.text.trim()}
+${constraints.text.trim()}
 
 طريقة التنفيذ:
 1. افحص ملفات المشروع وسجل الأخطاء قبل التعديل.
