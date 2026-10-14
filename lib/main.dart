@@ -116,7 +116,7 @@ class _ProjectsPageState extends State<ProjectsPage>{
       final repoName=r['name']?.toString()??'مستودع';
       final desc=r['description']?.toString();
       final details = '${desc == null || desc.isEmpty ? 'لا يوجد وصف' : desc}\n${r['language']?.toString() ?? 'لغة غير محددة'} • ★ ${r['stargazers_count']?.toString() ?? '0'}';
-      return Card(color:panel,child:ListTile(leading:const Icon(Icons.code,color:blue),title:Text(repoName),subtitle:Text(details,maxLines:3,overflow:TextOverflow.ellipsis),trailing:IconButton(icon:const Icon(Icons.open_in_new),onPressed:()=>openExternal(r['html_url']?.toString()??''))));
+      return Card(color:panel,child:ListTile(leading:const Icon(Icons.code,color:blue),title:Text(repoName),subtitle:Text(details,maxLines:3,overflow:TextOverflow.ellipsis),onTap:()=>openExternal(r['html_url']?.toString()??''),trailing:const Icon(Icons.chevron_left)));
     })
   ]);
 }
