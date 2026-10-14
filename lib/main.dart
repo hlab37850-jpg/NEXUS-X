@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'repository_details_page.dart';
 
 void main() => runApp(const NexusXApp());
 const bg = Color(0xFF080D18);
@@ -116,7 +117,7 @@ class _ProjectsPageState extends State<ProjectsPage>{
       final repoName=r['name']?.toString()??'مستودع';
       final desc=r['description']?.toString();
       final details = '${desc == null || desc.isEmpty ? 'لا يوجد وصف' : desc}\n${r['language']?.toString() ?? 'لغة غير محددة'} • ★ ${r['stargazers_count']?.toString() ?? '0'}';
-      return Card(color:panel,child:ListTile(leading:const Icon(Icons.code,color:blue),title:Text(repoName),subtitle:Text(details,maxLines:3,overflow:TextOverflow.ellipsis),onTap:()=>openExternal(r['html_url']?.toString()??''),trailing:const Icon(Icons.chevron_left)));
+      return Card(color:panel,child:ListTile(leading:const Icon(Icons.code,color:blue),title:Text(repoName),subtitle:Text(details,maxLines:3,overflow:TextOverflow.ellipsis),onTap:()=>Navigator.of(context).push(MaterialPageRoute(builder:(_)=>RepositoryDetailsPage(repository:r))),trailing:const Icon(Icons.chevron_left)));
     })
   ]);
 }
