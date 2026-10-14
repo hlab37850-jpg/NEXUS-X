@@ -129,9 +129,11 @@ class _RepositoryDetailsPageState extends State<RepositoryDetailsPage> {
                   final cloneUrl = widget.repository['clone_url']?.toString() ?? '';
                   if (cloneUrl.isEmpty) return;
                   await Clipboard.setData(ClipboardData(text: cloneUrl));
-                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('تم نسخ رابط Git للمستودع.')),
-                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم نسخ رابط Git للمستودع.')),
+                    );
+                  }
                 },
                 icon: const Icon(Icons.copy),
                 label: const Text('نسخ رابط Git'),
