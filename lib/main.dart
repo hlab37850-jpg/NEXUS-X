@@ -154,7 +154,9 @@ class _CloudBuildPageState extends State<CloudBuildPage>{
     if(error!=null)msg(error!,true),
     if(checked&&!loading&&error==null&&run==null)msg('لا توجد تشغيلات بناء مسجلة لهذا المستودع.'),
     if(run!=null)_runCard(run!),
-    const SizedBox(height:12),const Text('هذه المرحلة للقراءة فقط. تشغيل البناء أو إعادة تشغيله يحتاج صلاحيات GitHub Actions إضافية.',style:TextStyle(color:Colors.white38,fontSize:12,height:1.5))
+    const SizedBox(height:12),
+    OutlinedButton.icon(onPressed:()=>openExternal('https://github.com/${owner.text.trim()}/${repo.text.trim()}/actions/workflows/build.yml'),icon:const Icon(Icons.open_in_browser),label:const Text('فتح GitHub لتشغيل بناء جديد')),
+    const Text('سجّل الدخول في GitHub ثم اختر Run workflow. لا تدخل رمز وصول في التطبيق؛ يلزم امتلاك المستودع أو صلاحية Actions.',style:TextStyle(color:Colors.white38,fontSize:12,height:1.5))
   ]);
   Widget _runCard(Map<String,dynamic> r){
     final status=r['status']?.toString()??'unknown';final conclusion=r['conclusion']?.toString();
