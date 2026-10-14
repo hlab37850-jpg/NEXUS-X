@@ -286,7 +286,7 @@ class _AiWorkspacePageState extends State<AiWorkspacePage> {
           hintText: 'مثال: أصلح سبب فشل البناء دون تغيير تصميم الشاشات.',
           alignLabelWithHint: true,
         ),
-        onChanged: (_) { if (generated) setState(() => generated = false); },
+        onChanged: (_) => setState(() => generated = false),
       ),
       const SizedBox(height: 12),
       TextField(
